@@ -1,18 +1,18 @@
 package app
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
-	"github.com/avast/retry-go"
 	"github.com/endofcake/go-todo-rest-api-example/app/model"
 	"github.com/endofcake/go-todo-rest-api-example/config"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/mingrammer/go-todo-rest-api-example/app/handler"
+	"gopkg.in/matryer/try.v1"
 )
 
 // App has router and db instances
@@ -31,12 +31,28 @@ func (a *App) Initialize(config *config.Config) {
 		config.DB.Password,
 		config.DB.SslMode)
 
+	log.Print(dbURI)
 
-	db, err := gorm.Open(config.DB.Dialect, dbURI)
+	log.Print("Trying connection to the database...")
+
+	var db *gorm.DB
+	err := try.Do(func(attempt int) (bool, error) {
+		var err error
+		db, err = gorm.Open(config.DB.Dialect, dbURI)
+		if err != nil {
+			log.Print("Connection failed, retrying...")
+			time.Sleep(5 * time.Second)
+		}
+		return attempt < 5, err // try 5 times
+	})
 	if err != nil {
-		print(err)
-		log.Fatalf("Could not connect database. %s", err)
+		log.Fatalf("Could not connect to the database. %s", err)
 	}
+
+	// db, err := gorm.Open(config.DB.Dialect, dbURI)
+	// if err != nil {
+	// 	print(err)
+	// }
 
 	a.DB = model.DBMigrate(db)
 	a.Router = mux.NewRouter()
