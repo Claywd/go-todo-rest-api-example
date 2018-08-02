@@ -1,15 +1,18 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/avast/retry-go"
+	"github.com/endofcake/go-todo-rest-api-example/app/model"
+	"github.com/endofcake/go-todo-rest-api-example/config"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/mingrammer/go-todo-rest-api-example/app/handler"
-	"github.com/mingrammer/go-todo-rest-api-example/app/model"
-	"github.com/mingrammer/go-todo-rest-api-example/config"
 )
 
 // App has router and db instances
@@ -18,17 +21,21 @@ type App struct {
 	DB     *gorm.DB
 }
 
-// Initialize initializes the app with predefined configuration
+// Initialize  the app with predefined configuration
 func (a *App) Initialize(config *config.Config) {
-	dbURI := fmt.Sprintf("%s:%s@/%s?charset=%s&parseTime=True",
+	dbURI := fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=%s",
+		config.DB.Host,
+		config.DB.Port,
+		config.DB.DbName,
 		config.DB.Username,
 		config.DB.Password,
-		config.DB.Name,
-		config.DB.Charset)
+		config.DB.SslMode)
+
 
 	db, err := gorm.Open(config.DB.Dialect, dbURI)
 	if err != nil {
-		log.Fatal("Could not connect database")
+		print(err)
+		log.Fatalf("Could not connect database. %s", err)
 	}
 
 	a.DB = model.DBMigrate(db)
