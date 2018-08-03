@@ -1,29 +1,51 @@
 # Go Todo REST API Example
-A RESTful API example for simple todo application with Go
+A dockerised version of a simple RESTful API example for a todo application written in Go. The purpose of this project is to server as a sample deployable app to demo deployments to container orchestration systems such as ECS or Kubernetes. It has a database dependency, so will be more interesting to play with than a simple `hello-world`.
 
-It is a just simple tutorial or example for making simple RESTful API with Go using **gorilla/mux** (A nice mux library) and **gorm** (An ORM for Go)
+Based on [mingrammer/go-todo-rest-api-example](https://github.com/mingrammer/go-todo-rest-api-example).
 
-## Installation & Run
+The main changes:
+
+* swapped database engine for Postgres
+* dockerised all the things
+* added retries so that `docker-compose up` works out of the box.
+
+## Run locally
 ```bash
 # Download this project
-go get github.com/mingrammer/go-todo-rest-api-example
+git clone endofcake/go-todo-rest-api-example
 ```
 
-Before running API server, you should set the database config with yours or set the your database config with my values on [config.go](https://github.com/mingrammer/go-todo-rest-api-example/blob/master/config/config.go)
-```go
-func GetConfig() *Config {
-	return &Config{
-		DB: &DBConfig{
-			Dialect:  "mysql",
-			Username: "guest",
-			Password: "Guest0000!",
-			Name:     "todoapp",
-			Charset:  "utf8",
-		},
-	}
-}
+Run `docker-compose`:
+```bash
+docker-compose up -d
+```
+This will create a Postgres database and run the schema migration, and then start the web server on port 3000.
+
+Verify that everything is working:
+
+```bash
+# no projects yet
+curl http://localhost:3000/projects
+
+# add a sample project
+curl -d '{"title":"sample project"}' -H "Content-Type: application/json" -X POST http://localhost:3000/projects
+
+# check that it's saved
+curl http://localhost:3000/projects
 ```
 
+Check the database:
+```bash
+export PGPASSWORD=qwerty
+
+# connect to the db
+psql -h localhost -d todoapp -U docker
+
+# poke around in psql
+\d+ # and other psql commands
+```
+
+## Build
 ```bash
 # Build and Run
 cd go-todo-rest-api-example
@@ -32,6 +54,20 @@ go build
 
 # API Endpoint : http://127.0.0.1:3000
 ```
+
+## Deploy
+Deploy as a standard container app using your favourite deployment method.
+
+The app will require certain parameters to be set as environment variables in order to connect to the database (needs to be provisioned separately):
+```
+PGHOST
+PGDATABASE
+PGUSER
+PGPASSWORD
+PGSSLMODE
+```
+
+`PGPASSWORD` is a secret and should be treated accordingly. To simplify secret management in AWS, the Docker image includes the [pstore](https://github.com/glassechidna/pstore) utility, so you can keep the password in AWS Parameter Store and decrypt it at runtime by setting `PSTORE_PGPASSWORD` environment variable to point to the secret name. This will require appropriate IAM permissions.
 
 ## Structure
 ```
@@ -61,7 +97,7 @@ go build
 
 #### /projects/:title/archive
 * `PUT` : Archive a project
-* `DELETE` : Restore a project 
+* `DELETE` : Restore a project
 
 #### /projects/:title/tasks
 * `GET` : Get all tasks of a project
@@ -75,13 +111,3 @@ go build
 #### /projects/:title/tasks/:id/complete
 * `PUT` : Complete a task of a project
 * `DELETE` : Undo a task of a project
-
-## Todo
-
-- [x] Support basic REST APIs.
-- [ ] Support Authentication with user for securing the APIs.
-- [ ] Make convenient wrappers for creating API handlers.
-- [ ] Write the tests for all APIs.
-- [x] Organize the code with packages
-- [ ] Make docs with GoDoc
-- [ ] Building a deployment process 
