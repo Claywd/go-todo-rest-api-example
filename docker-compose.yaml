@@ -1,0 +1,21 @@
+version: '3'
+services:
+  postgres:
+    build: ./postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password1
+      - PGSSLMODE=require
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    environment:
+      - PGHOST=postgres
+      - PGDATABASE=todoapp
+      - PGUSER=docker
+      - PGPASSWORD=qwerty
+      - PGSSLMODE=disable
+    ports:
+      - "3000:3000"
